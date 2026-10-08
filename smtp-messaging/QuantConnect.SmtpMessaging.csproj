@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblyName>QuantConnect.SmtpMessaging</AssemblyName>
+    <RootNamespace>QuantConnect.SmtpMessaging</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.14.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="QuantConnect.Common">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Configuration">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Configuration.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Logging">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Logging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Messaging">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Messaging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
