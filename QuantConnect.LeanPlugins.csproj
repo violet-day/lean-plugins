@@ -4,9 +4,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <AssemblyName>QuantConnect.SmtpMessaging</AssemblyName>
-    <RootNamespace>QuantConnect.SmtpMessaging</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>QuantConnect.LeanPlugins</AssemblyName>
+    <RootNamespace>QuantConnect.LeanPlugins</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.18.1" />

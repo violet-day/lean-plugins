@@ -9,7 +9,7 @@ using QuantConnect.Logging;
 using QuantConnect.Notifications;
 using QuantConnect.Packets;
 
-namespace QuantConnect.SmtpMessaging;
+namespace QuantConnect.LeanPlugins;
 
 public sealed class SmtpMessagingHandler : IMessagingHandler
 {
