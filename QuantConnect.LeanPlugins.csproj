@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>QuantConnect.LeanPlugins</AssemblyName>
+    <RootNamespace>QuantConnect.LeanPlugins</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.18.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="QuantConnect.Common">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Configuration">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Configuration.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Logging">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Logging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Messaging">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Messaging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
