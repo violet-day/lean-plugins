@@ -30,8 +30,16 @@
       <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Logging.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="QuantConnect.Lean.Engine">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Lean.Engine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="QuantConnect.Messaging">
       <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Messaging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="QuantConnect.Queues">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Queues.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

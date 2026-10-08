@@ -8,6 +8,10 @@ notifications through SMTP. Other LEAN packets and notification types remain
 handled by the default local messaging handler. Email delivery runs on a
 dedicated background thread, so the algorithm does not wait for SMTP I/O.
 
+`LeanLogOnlyDebugLiveTradingResultHandler` keeps Debug and SystemDebug packets
+in LEAN's `log.txt` while excluding them from `L-*-log.txt`. Log, handled error,
+and runtime error messages remain in both logs.
+
 ## Build and sync
 
 Build all plugins on the Mac against the configured LEAN image:
@@ -33,6 +37,8 @@ configuration.
 
 ```text
 plugin-directory=/LeanPlugins
+job-queue-handler=QuantConnect.LeanPlugins.LeanPluginsJobQueueHandler
+lean-plugins-result-handler=QuantConnect.LeanPlugins.LeanLogOnlyDebugLiveTradingResultHandler
 messaging-handler=QuantConnect.LeanPlugins.SmtpMessagingHandler
 smtp-notification-host=smtp.126.com
 smtp-notification-port=465
