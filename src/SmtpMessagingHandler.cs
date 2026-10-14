@@ -25,6 +25,7 @@ public sealed class SmtpMessagingHandler : IMessagingHandler
     private string _smtpUsername = string.Empty;
     private string _smtpPassword = string.Empty;
     private string _fromAddress = string.Empty;
+    private string _runtimeErrorRecipient = string.Empty;
 
     public bool HasSubscribers
     {
@@ -40,6 +41,7 @@ public sealed class SmtpMessagingHandler : IMessagingHandler
         _smtpPort = Config.GetInt("smtp-notification-port", 465);
         _smtpUsername = GetRequiredConfiguration("smtp-notification-username");
         _fromAddress = Config.Get("smtp-notification-from-address", _smtpUsername);
+        _runtimeErrorRecipient = Config.Get("smtp-runtime-error-recipient", string.Empty).Trim();
 
         var passwordFilePath = GetRequiredConfiguration("smtp-notification-password-file");
         _smtpPassword = File.ReadAllText(passwordFilePath).Trim();
@@ -62,7 +64,10 @@ public sealed class SmtpMessagingHandler : IMessagingHandler
         };
         _emailWorker.Start();
 
-        Log.Trace($"SmtpMessagingHandler.Initialize(): status=ready host={_smtpHost} port={_smtpPort} security={_smtpSecurity} from={_fromAddress}");
+        Log.Trace(
+            $"SmtpMessagingHandler.Initialize(): status=ready host={_smtpHost} port={_smtpPort} " +
+            $"security={_smtpSecurity} from={_fromAddress} " +
+            $"runtime_error_recipient_configured={!string.IsNullOrWhiteSpace(_runtimeErrorRecipient)}");
     }
 
     public void SetAuthentication(AlgorithmNodePacket job)
@@ -72,6 +77,32 @@ public sealed class SmtpMessagingHandler : IMessagingHandler
 
     public void Send(Packet packet)
     {
+        if (packet is RuntimeErrorPacket runtimeErrorPacket)
+        {
+            if (string.IsNullOrWhiteSpace(_runtimeErrorRecipient))
+            {
+                Log.Error(
+                    $"SmtpMessagingHandler.Send(): status=runtime_error_email_skipped " +
+                    $"reason=recipient-not-configured algorithm_id={runtimeErrorPacket.AlgorithmId}");
+            }
+            else
+            {
+                var emailBody = new StringBuilder()
+                    .AppendLine("LEAN live algorithm stopped with a runtime error.")
+                    .AppendLine($"Algorithm ID: {runtimeErrorPacket.AlgorithmId}")
+                    .AppendLine($"Message: {runtimeErrorPacket.Message}");
+                if (!string.IsNullOrWhiteSpace(runtimeErrorPacket.StackTrace))
+                {
+                    emailBody.AppendLine($"Stack trace: {runtimeErrorPacket.StackTrace}");
+                }
+
+                SendNotification(new NotificationEmail(
+                    _runtimeErrorRecipient,
+                    $"LEAN Runtime Error - {runtimeErrorPacket.AlgorithmId}",
+                    emailBody.ToString()));
+            }
+        }
+
         _defaultMessagingHandler.Send(packet);
     }
 

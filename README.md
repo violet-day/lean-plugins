@@ -4,9 +4,11 @@ Standalone plugins loaded through LEAN's `plugin-directory` configuration.
 They extend a stock LEAN image without modifying or rebuilding the engine.
 
 `SmtpMessagingHandler` sends local live-trading `self.notify.email(...)`
-notifications through SMTP. Other LEAN packets and notification types remain
-handled by the default local messaging handler. Email delivery runs on a
-dedicated background thread, so the algorithm does not wait for SMTP I/O.
+notifications through SMTP. When `smtp-runtime-error-recipient` is configured,
+it also sends each LEAN `RuntimeErrorPacket` to that address before the live
+process exits. Other LEAN packets and notification types remain handled by the
+default local messaging handler. Email delivery runs on a dedicated background
+thread, so the algorithm does not wait for SMTP I/O.
 
 `LeanLogOnlyDebugLiveTradingResultHandler` keeps Debug and SystemDebug packets
 in LEAN's `log.txt` while excluding them from `L-*-log.txt`. Log, handled error,
@@ -46,6 +48,7 @@ smtp-notification-security=SslOnConnect
 smtp-notification-username=sender@example.com
 smtp-notification-from-address=sender@example.com
 smtp-notification-password-file=/run/secrets/lean-smtp-password
+smtp-runtime-error-recipient=recipient@example.com
 ```
 
 Valid security values are MailKit `SecureSocketOptions` names such as
