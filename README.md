@@ -14,6 +14,11 @@ thread, so the algorithm does not wait for SMTP I/O.
 in LEAN's `log.txt` while excluding them from `L-*-log.txt`. Log, handled error,
 and runtime error messages remain in both logs.
 
+`RestoredHoldingsSetupHandler` seeds brokerage holdings into LEAN's native
+`TradeBuilder` after live setup. A later brokerage-side closing fill can then
+produce a complete QC trade without applying the restored position to the
+portfolio or cash book a second time.
+
 ## Build and sync
 
 Build all plugins on the Mac against the configured LEAN image:

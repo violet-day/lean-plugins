@@ -18,6 +18,14 @@ public sealed class LeanPluginsJobQueueHandler : IJobQueueHandler
     public AlgorithmNodePacket NextJob(out string algorithmPath)
     {
         var algorithmJob = _defaultJobQueue.NextJob(out algorithmPath);
+        var setupHandlerTypeName = algorithmJob is LiveNodePacket
+            ? nameof(RestoredHoldingsSetupHandler)
+            : null;
+        if (setupHandlerTypeName != null)
+        {
+            Config.Set("setup-handler", setupHandlerTypeName);
+        }
+
         var resultHandlerTypeName = Config.Get("lean-plugins-result-handler");
         if (!string.IsNullOrWhiteSpace(resultHandlerTypeName))
         {
@@ -28,7 +36,8 @@ public sealed class LeanPluginsJobQueueHandler : IJobQueueHandler
             Config.Set(resultHandlerConfigurationName, resultHandlerTypeName);
             Log.Trace(
                 $"{nameof(LeanPluginsJobQueueHandler)}.NextJob(): status=configured " +
-                $"environment={environmentName} result_handler={resultHandlerTypeName}"
+                $"environment={environmentName} setup_handler={setupHandlerTypeName ?? "unchanged"} " +
+                $"result_handler={resultHandlerTypeName}"
             );
         }
 
