@@ -19,12 +19,24 @@ and runtime error messages remain in both logs.
 produce a complete QC trade without applying the restored position to the
 portfolio or cash book a second time.
 
+`PersistentOrderTagTransactionHandler` stores tags for open live orders in the
+project Object Store, keyed by brokerage order identifiers. During a restart it
+restores missing tags before LEAN creates order tickets. It works with any
+brokerage that returns stable brokerage order identifiers across restarts and
+leaves brokerage-provided tags unchanged.
+
 ## Build and sync
 
 Build all plugins on the Mac against the configured LEAN image:
 
 ```bash
 make build
+```
+
+Run the plugin tests in the same image:
+
+```bash
+make test
 ```
 
 The generic deployable directory is `bin/`. Sync it to the live server with:
@@ -76,4 +88,7 @@ the engine log to verify delivery:
 SmtpMessagingHandler.SendNotification(): status=queued
 SmtpMessagingHandler.ProcessEmailQueue(): status=sent
 SmtpMessagingHandler.ProcessEmailQueue(): status=failed
+PersistentOrderTagTransactionHandler.PersistOpenOrderTags(): status=saved
+PersistentOrderTagTransactionHandler.RestoreOrderTag(): status=restored
+PersistentOrderTagTransactionHandler.RestoreOrderTag(): status=missing
 ```

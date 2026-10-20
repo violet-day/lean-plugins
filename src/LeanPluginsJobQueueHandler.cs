@@ -21,9 +21,16 @@ public sealed class LeanPluginsJobQueueHandler : IJobQueueHandler
         var setupHandlerTypeName = algorithmJob is LiveNodePacket
             ? nameof(RestoredHoldingsSetupHandler)
             : null;
+        var transactionHandlerTypeName = algorithmJob is LiveNodePacket
+            ? nameof(PersistentOrderTagTransactionHandler)
+            : null;
         if (setupHandlerTypeName != null)
         {
             Config.Set("setup-handler", setupHandlerTypeName);
+        }
+        if (transactionHandlerTypeName != null)
+        {
+            Config.Set("transaction-handler", transactionHandlerTypeName);
         }
 
         var resultHandlerTypeName = Config.Get("lean-plugins-result-handler");
@@ -34,12 +41,14 @@ public sealed class LeanPluginsJobQueueHandler : IJobQueueHandler
                 ? "result-handler"
                 : $"{environmentName}.result-handler";
             Config.Set(resultHandlerConfigurationName, resultHandlerTypeName);
-            Log.Trace(
-                $"{nameof(LeanPluginsJobQueueHandler)}.NextJob(): status=configured " +
-                $"environment={environmentName} setup_handler={setupHandlerTypeName ?? "unchanged"} " +
-                $"result_handler={resultHandlerTypeName}"
-            );
         }
+
+        Log.Trace(
+            $"{nameof(LeanPluginsJobQueueHandler)}.NextJob(): status=configured " +
+            $"environment={Config.GetEnvironment()} setup_handler={setupHandlerTypeName ?? "unchanged"} " +
+            $"transaction_handler={transactionHandlerTypeName ?? "unchanged"} " +
+            $"result_handler={resultHandlerTypeName ?? "unchanged"}"
+        );
 
         return algorithmJob;
     }
