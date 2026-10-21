@@ -4,6 +4,7 @@ using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Lean.Engine.TransactionHandlers;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
+using QuantConnect.Orders.Fees;
 
 namespace QuantConnect.LeanPlugins;
 
@@ -30,11 +31,34 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
         brokerage.OrderIdChanged += HandleBrokerageOrderChanged;
         brokerage.OrdersStatusChanged += HandleBrokerageOrderChanged;
+        var restoredOpenOrders = GetOpenOrders();
+        foreach (var restoredOpenOrder in restoredOpenOrders)
+        {
+            var restoredSubmittedEvent = new OrderEvent(
+                restoredOpenOrder.Id,
+                restoredOpenOrder.Symbol,
+                restoredOpenOrder.Time,
+                OrderStatus.Submitted,
+                restoredOpenOrder.Direction,
+                0m,
+                0m,
+                OrderFee.Zero,
+                "Restored brokerage open order")
+            {
+                Quantity = restoredOpenOrder.Quantity
+            };
+            if (restoredOpenOrder is LimitOrder restoredLimitOrder)
+            {
+                restoredSubmittedEvent.LimitPrice = restoredLimitOrder.LimitPrice;
+            }
+            resultHandler.OrderEvent(restoredSubmittedEvent);
+        }
         PersistOpenOrderTags();
 
         Log.Trace(
             $"{nameof(PersistentOrderTagTransactionHandler)}.Initialize(): status=ready " +
-            $"brokerage={algorithm.BrokerageName} storage_key={_storageKey}");
+            $"brokerage={algorithm.BrokerageName} storage_key={_storageKey} " +
+            $"restored_submit_events={restoredOpenOrders.Count}");
     }
 
     void ITransactionHandler.AddOpenOrder(Order order, IAlgorithm algorithm)

@@ -31,6 +31,9 @@
     <Reference Include="QuantConnect.Common">
       <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Common.dll</HintPath>
     </Reference>
+    <Reference Include="QuantConnect.Brokerages">
+      <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Brokerages.dll</HintPath>
+    </Reference>
     <Reference Include="QuantConnect.Configuration">
       <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Configuration.dll</HintPath>
     </Reference>
@@ -39,6 +42,9 @@
     </Reference>
     <Reference Include="QuantConnect.Logging">
       <HintPath>/Lean/Launcher/bin/Debug/QuantConnect.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="NodaTime">
+      <HintPath>/Lean/Launcher/bin/Debug/NodaTime.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>
