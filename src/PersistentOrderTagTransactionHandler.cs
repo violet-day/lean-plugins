@@ -15,7 +15,9 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
     private readonly object _persistenceLock = new();
     private IAlgorithm? _algorithm;
+    private IResultHandler? _resultHandler;
     private PersistedOrderTagStore? _persistedOrderTagStore;
+    private List<OrderEvent>? _restoredSubmittedEvents;
     private string? _persistedStateFingerprint;
     private string _storageKey = string.Empty;
 
@@ -25,11 +27,13 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
         IResultHandler resultHandler)
     {
         _algorithm = algorithm;
+        _resultHandler = resultHandler;
         EnsureStoreLoaded(algorithm);
 
         base.Initialize(algorithm, brokerage, resultHandler);
 
         var restoredOpenOrders = GetOpenOrders();
+        _restoredSubmittedEvents = [];
         foreach (var restoredOpenOrder in restoredOpenOrders)
         {
             var restoredSubmittedEvent = new OrderEvent(
@@ -49,7 +53,7 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
             {
                 restoredSubmittedEvent.LimitPrice = restoredLimitOrder.LimitPrice;
             }
-            resultHandler.OrderEvent(restoredSubmittedEvent);
+            _restoredSubmittedEvents.Add(restoredSubmittedEvent);
         }
         PersistOpenOrderTags();
 
@@ -68,6 +72,17 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     public override void ProcessSynchronousEvents()
     {
         base.ProcessSynchronousEvents();
+
+        var restoredSubmittedEvents = Interlocked.Exchange(
+            ref _restoredSubmittedEvents,
+            null);
+        if (restoredSubmittedEvents != null)
+        {
+            foreach (var restoredSubmittedEvent in restoredSubmittedEvents)
+            {
+                _resultHandler!.OrderEvent(restoredSubmittedEvent);
+            }
+        }
         PersistOpenOrderTags();
     }
 

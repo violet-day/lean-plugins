@@ -89,6 +89,10 @@ public sealed class PersistentOrderTagTransactionHandlerTests
         try
         {
             transactionHandler.Initialize(algorithm, brokerage, resultHandler);
+            Assert.That(resultHandler.OrderEvents, Is.Empty);
+
+            transactionHandler.ProcessSynchronousEvents();
+            transactionHandler.ProcessSynchronousEvents();
         }
         finally
         {
