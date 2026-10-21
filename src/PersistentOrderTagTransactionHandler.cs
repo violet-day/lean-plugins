@@ -14,10 +14,11 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     private const string StorageKeyPrefix = "lean-plugins/order-tags";
 
     private readonly object _persistenceLock = new();
+    private readonly List<OrderEvent> _restoredSubmittedEvents = [];
     private IAlgorithm? _algorithm;
     private IResultHandler? _resultHandler;
     private PersistedOrderTagStore? _persistedOrderTagStore;
-    private List<OrderEvent>? _restoredSubmittedEvents;
+    private bool _restoredSubmittedEventsPublished;
     private string? _persistedStateFingerprint;
     private string _storageKey = string.Empty;
 
@@ -28,12 +29,13 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     {
         _algorithm = algorithm;
         _resultHandler = resultHandler;
+        _restoredSubmittedEvents.Clear();
+        _restoredSubmittedEventsPublished = false;
         EnsureStoreLoaded(algorithm);
 
         base.Initialize(algorithm, brokerage, resultHandler);
 
         var restoredOpenOrders = GetOpenOrders();
-        _restoredSubmittedEvents = [];
         foreach (var restoredOpenOrder in restoredOpenOrders)
         {
             var restoredSubmittedEvent = new OrderEvent(
@@ -69,16 +71,17 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
         base.AddOpenOrder(order, algorithm);
     }
 
+    IEnumerable<OrderEvent> ITransactionHandler.OrderEvents =>
+        _restoredSubmittedEvents.Concat(base.OrderEvents);
+
     public override void ProcessSynchronousEvents()
     {
         base.ProcessSynchronousEvents();
 
-        var restoredSubmittedEvents = Interlocked.Exchange(
-            ref _restoredSubmittedEvents,
-            null);
-        if (restoredSubmittedEvents != null)
+        if (!_restoredSubmittedEventsPublished)
         {
-            foreach (var restoredSubmittedEvent in restoredSubmittedEvents)
+            _restoredSubmittedEventsPublished = true;
+            foreach (var restoredSubmittedEvent in _restoredSubmittedEvents)
             {
                 _resultHandler!.OrderEvent(restoredSubmittedEvent);
             }

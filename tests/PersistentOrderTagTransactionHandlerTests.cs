@@ -102,6 +102,9 @@ public sealed class PersistentOrderTagTransactionHandlerTests
         var restoredSubmittedEvent = resultHandler.OrderEvents.Single();
         Assert.Multiple(() =>
         {
+            Assert.That(
+                ((ITransactionHandler)transactionHandler).OrderEvents.Single(),
+                Is.SameAs(restoredSubmittedEvent));
             Assert.That(restoredSubmittedEvent.OrderId, Is.EqualTo(restoredOpenOrder.Id));
             Assert.That(restoredSubmittedEvent.Id, Is.Zero);
             Assert.That(restoredSubmittedEvent.UtcTime, Is.EqualTo(restoredOpenOrder.Time));
