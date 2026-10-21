@@ -29,8 +29,6 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
         base.Initialize(algorithm, brokerage, resultHandler);
 
-        brokerage.OrderIdChanged += HandleBrokerageOrderChanged;
-        brokerage.OrdersStatusChanged += HandleBrokerageOrderChanged;
         var restoredOpenOrders = GetOpenOrders();
         foreach (var restoredOpenOrder in restoredOpenOrders)
         {
@@ -76,11 +74,6 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     public override void ProcessAsynchronousEvents()
     {
         base.ProcessAsynchronousEvents();
-        PersistOpenOrderTags();
-    }
-
-    private void HandleBrokerageOrderChanged(object? sender, object eventArguments)
-    {
         PersistOpenOrderTags();
     }
 
