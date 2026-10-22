@@ -9,6 +9,11 @@ public sealed class RestoredHoldingsSetupHandler : BrokerageSetupHandler, ISetup
 {
     bool ISetupHandler.Setup(SetupHandlerParameters parameters)
     {
+        if (parameters.TransactionHandler is PersistentOrderTagTransactionHandler transactionHandler)
+        {
+            transactionHandler.ConfigurePersistence(parameters.Algorithm, parameters.Brokerage);
+        }
+
         if (!base.Setup(parameters))
         {
             return false;

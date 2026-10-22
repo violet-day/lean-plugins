@@ -10,7 +10,7 @@ namespace QuantConnect.LeanPlugins;
 
 public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionHandler, ITransactionHandler
 {
-    private const int StorageVersion = 1;
+    private const int StorageVersion = 2;
     private const string StorageKeyPrefix = "lean-plugins/order-tags";
 
     private readonly object _persistenceLock = new();
@@ -20,6 +20,9 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     private PersistedOrderTagStore? _persistedOrderTagStore;
     private bool _restoredSubmittedEventsPublished;
     private string? _persistedStateFingerprint;
+    private string _brokerageName = string.Empty;
+    private string _brokerageType = string.Empty;
+    private string _legacyStorageKey = string.Empty;
     private string _storageKey = string.Empty;
 
     public override void Initialize(
@@ -27,11 +30,11 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
         IBrokerage brokerage,
         IResultHandler resultHandler)
     {
+        ConfigurePersistence(algorithm, brokerage);
         _algorithm = algorithm;
         _resultHandler = resultHandler;
         _restoredSubmittedEvents.Clear();
         _restoredSubmittedEventsPublished = false;
-        EnsureStoreLoaded(algorithm);
 
         base.Initialize(algorithm, brokerage, resultHandler);
 
@@ -61,8 +64,38 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
         Log.Trace(
             $"{nameof(PersistentOrderTagTransactionHandler)}.Initialize(): status=ready " +
-            $"brokerage={algorithm.BrokerageName} storage_key={_storageKey} " +
+            $"brokerage_name={_brokerageName} brokerage_type={_brokerageType} " +
+            $"storage_key={_storageKey} " +
             $"restored_submit_events={restoredOpenOrders.Count}");
+    }
+
+    internal void ConfigurePersistence(IAlgorithm algorithm, IBrokerage brokerage)
+    {
+        var brokerageType = brokerage.GetType();
+        var brokerageTypeName = brokerageType.FullName ?? brokerageType.Name;
+        var storageKey = $"{StorageKeyPrefix}/{brokerageType.Name}.json";
+
+        lock (_persistenceLock)
+        {
+            if (!string.IsNullOrEmpty(_storageKey))
+            {
+                if (!string.Equals(_storageKey, storageKey, StringComparison.Ordinal) ||
+                    !string.Equals(_brokerageName, brokerage.Name, StringComparison.Ordinal) ||
+                    !string.Equals(_brokerageType, brokerageTypeName, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Order tag persistence was already configured for {_brokerageType}");
+                }
+                return;
+            }
+
+            _brokerageName = brokerage.Name;
+            _brokerageType = brokerageTypeName;
+            _storageKey = storageKey;
+            _legacyStorageKey = $"{StorageKeyPrefix}/{algorithm.BrokerageName}.json";
+        }
+
+        EnsureStoreLoaded(algorithm);
     }
 
     void ITransactionHandler.AddOpenOrder(Order order, IAlgorithm algorithm)
@@ -150,13 +183,49 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
                 return;
             }
 
-            _storageKey = $"{StorageKeyPrefix}/{algorithm.BrokerageName}.json";
+            if (string.IsNullOrEmpty(_storageKey))
+            {
+                throw new InvalidOperationException(
+                    "Order tag persistence must be configured with the active brokerage before loading");
+            }
+
             try
             {
-                _persistedOrderTagStore = algorithm.ObjectStore.ContainsKey(_storageKey)
-                    ? JsonSerializer.Deserialize<PersistedOrderTagStore>(
-                        algorithm.ObjectStore.Read(_storageKey))
-                    : new PersistedOrderTagStore();
+                if (algorithm.ObjectStore.ContainsKey(_storageKey))
+                {
+                    _persistedOrderTagStore = JsonSerializer.Deserialize<PersistedOrderTagStore>(
+                        algorithm.ObjectStore.Read(_storageKey));
+                }
+                else if (algorithm.ObjectStore.ContainsKey(_legacyStorageKey))
+                {
+                    _persistedOrderTagStore = JsonSerializer.Deserialize<PersistedOrderTagStore>(
+                        algorithm.ObjectStore.Read(_legacyStorageKey));
+                    if (_persistedOrderTagStore?.Version != 1)
+                    {
+                        throw new InvalidOperationException(
+                            $"Unsupported legacy order tag storage version: {_persistedOrderTagStore?.Version}");
+                    }
+
+                    _persistedOrderTagStore.Version = StorageVersion;
+                    _persistedOrderTagStore.BrokerageName = _brokerageName;
+                    _persistedOrderTagStore.BrokerageType = _brokerageType;
+                    _persistedStateFingerprint = null;
+                    Log.Trace(
+                        $"{nameof(PersistentOrderTagTransactionHandler)}.EnsureStoreLoaded(): " +
+                        $"status=migrated source_storage_key={_legacyStorageKey} " +
+                        $"storage_key={_storageKey} brokerage_name={_brokerageName} " +
+                        $"brokerage_type={_brokerageType} " +
+                        $"order_count={_persistedOrderTagStore.Orders.Count}");
+                    return;
+                }
+                else
+                {
+                    _persistedOrderTagStore = new PersistedOrderTagStore
+                    {
+                        BrokerageName = _brokerageName,
+                        BrokerageType = _brokerageType
+                    };
+                }
 
                 if (_persistedOrderTagStore == null)
                 {
@@ -168,16 +237,36 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
                     throw new InvalidOperationException(
                         $"Unsupported order tag storage version: {_persistedOrderTagStore.Version}");
                 }
+                if (!string.Equals(
+                        _persistedOrderTagStore.BrokerageName,
+                        _brokerageName,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        _persistedOrderTagStore.BrokerageType,
+                        _brokerageType,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Order tag storage brokerage does not match the active brokerage: " +
+                        $"stored_name={_persistedOrderTagStore.BrokerageName} " +
+                        $"stored_type={_persistedOrderTagStore.BrokerageType} " +
+                        $"active_name={_brokerageName} active_type={_brokerageType}");
+                }
 
                 _persistedStateFingerprint = CreateFingerprint(_persistedOrderTagStore.Orders);
                 Log.Trace(
                     $"{nameof(PersistentOrderTagTransactionHandler)}.EnsureStoreLoaded(): " +
                     $"status=loaded storage_key={_storageKey} " +
+                    $"brokerage_name={_brokerageName} brokerage_type={_brokerageType} " +
                     $"order_count={_persistedOrderTagStore.Orders.Count}");
             }
             catch (Exception exception)
             {
-                _persistedOrderTagStore = new PersistedOrderTagStore();
+                _persistedOrderTagStore = new PersistedOrderTagStore
+                {
+                    BrokerageName = _brokerageName,
+                    BrokerageType = _brokerageType
+                };
                 _persistedStateFingerprint = null;
                 Log.Error(
                     exception,
@@ -266,6 +355,8 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
     private sealed class PersistedOrderTagStore
     {
         public int Version { get; set; } = StorageVersion;
+        public string BrokerageName { get; set; } = string.Empty;
+        public string BrokerageType { get; set; } = string.Empty;
         public List<PersistedOrderTag> Orders { get; set; } = [];
     }
 

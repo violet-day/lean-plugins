@@ -20,10 +20,12 @@ produce a complete QC trade without applying the restored position to the
 portfolio or cash book a second time.
 
 `PersistentOrderTagTransactionHandler` stores tags for open live orders in the
-project Object Store, keyed by brokerage order identifiers. During a restart it
-restores missing tags before LEAN creates order tickets. It works with any
-brokerage that returns stable brokerage order identifiers across restarts and
-leaves brokerage-provided tags unchanged.
+project Object Store, using one file per concrete brokerage type and brokerage
+order identifiers within that file. The stored brokerage name and type are
+validated before restoration. During a restart it restores persisted tags
+before LEAN creates order tickets, including when the brokerage supplies a
+synthetic tag. It works with any brokerage that returns stable brokerage order
+identifiers across restarts.
 
 ## Build and sync
 

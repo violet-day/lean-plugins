@@ -25,6 +25,11 @@ public sealed class PersistentOrderTagTransactionHandlerTests
             "RestoreOrderTag",
             BindingFlags.Instance | BindingFlags.NonPublic)
         ?? throw new InvalidOperationException("RestoreOrderTag method was not found");
+    private static readonly MethodInfo ConfigurePersistenceMethod =
+        typeof(PersistentOrderTagTransactionHandler).GetMethod(
+            "ConfigurePersistence",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("ConfigurePersistence method was not found");
     private static readonly MethodInfo SetCurrentEnvironmentConfigurationMethod =
         typeof(LeanPluginsJobQueueHandler).GetMethod(
             "SetCurrentEnvironmentConfiguration",
@@ -82,9 +87,12 @@ public sealed class PersistentOrderTagTransactionHandlerTests
             new SecurityCache()));
         var transactionHandler = new PersistentOrderTagTransactionHandler();
         algorithm.Transactions.SetOrderProcessor(transactionHandler);
-        ((ITransactionHandler)transactionHandler).AddOpenOrder(restoredOpenOrder, algorithm);
         var resultHandler = new RecordingBacktestingResultHandler();
         using var brokerage = new BacktestingBrokerage(algorithm);
+        ConfigurePersistenceMethod.Invoke(
+            transactionHandler,
+            new object[] { algorithm, brokerage });
+        ((ITransactionHandler)transactionHandler).AddOpenOrder(restoredOpenOrder, algorithm);
 
         try
         {
@@ -197,11 +205,50 @@ public sealed class PersistentOrderTagTransactionHandlerTests
         Assert.That(order.Tag, Is.Empty);
     }
 
+    [Test]
+    public void DoesNotRestoreTagWhenStoredBrokerageDoesNotMatch()
+    {
+        const string brokerageOrderIdentifier = "broker-order-123";
+        var algorithm = CreateAlgorithm(out var objectStore);
+        var order = CreateOrder(brokerageOrderIdentifier);
+        SavePersistedOrderTag(
+            objectStore,
+            algorithm,
+            order,
+            brokerageOrderIdentifier,
+            "persisted-tag",
+            storedBrokerageType: "Different.Brokerage");
+
+        RestoreOrderTag(new PersistentOrderTagTransactionHandler(), order, algorithm);
+
+        Assert.That(order.Tag, Is.Empty);
+    }
+
+    [Test]
+    public void RestoresTagFromLegacyBrokerageNameStorage()
+    {
+        const string brokerageOrderIdentifier = "broker-order-123";
+        const string persistedTag = "legacy-tag";
+        var algorithm = CreateAlgorithm(out var objectStore);
+        var order = CreateOrder(brokerageOrderIdentifier);
+        SaveLegacyPersistedOrderTag(
+            objectStore,
+            algorithm,
+            order,
+            brokerageOrderIdentifier,
+            persistedTag);
+
+        RestoreOrderTag(new PersistentOrderTagTransactionHandler(), order, algorithm);
+
+        Assert.That(order.Tag, Is.EqualTo(persistedTag));
+    }
+
     private static QCAlgorithm CreateAlgorithm(out InMemoryObjectStore objectStore)
     {
         Config.Set("data-folder", "/Lean/Data");
         Globals.Reset();
         var algorithm = new QCAlgorithm();
+        algorithm.ProjectId = 123;
         objectStore = new InMemoryObjectStore();
         algorithm.SetObjectStore(objectStore);
         return algorithm;
@@ -236,6 +283,39 @@ public sealed class PersistentOrderTagTransactionHandlerTests
         QCAlgorithm algorithm,
         Order order,
         string brokerageOrderIdentifier,
+        string tag,
+        string? storedBrokerageName = null,
+        string? storedBrokerageType = null)
+    {
+        using var brokerage = new BacktestingBrokerage(algorithm);
+        var persistedOrderTagStore = new
+        {
+            Version = 2,
+            BrokerageName = storedBrokerageName ?? brokerage.Name,
+            BrokerageType = storedBrokerageType ?? brokerage.GetType().FullName,
+            Orders = new[]
+            {
+                new
+                {
+                    BrokerageOrderIdentifiers = new[] { brokerageOrderIdentifier },
+                    SymbolIdentifier = order.Symbol.ID.ToString(),
+                    OrderType = order.Type,
+                    OrderDirection = order.Direction,
+                    Tag = tag
+                }
+            }
+        };
+        var storageKey = $"lean-plugins/order-tags/{brokerage.GetType().Name}.json";
+        objectStore.SaveBytes(
+            storageKey,
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(persistedOrderTagStore)));
+    }
+
+    private static void SaveLegacyPersistedOrderTag(
+        InMemoryObjectStore objectStore,
+        QCAlgorithm algorithm,
+        Order order,
+        string brokerageOrderIdentifier,
         string tag)
     {
         var persistedOrderTagStore = new
@@ -264,6 +344,10 @@ public sealed class PersistentOrderTagTransactionHandlerTests
         Order order,
         QCAlgorithm algorithm)
     {
+        using var brokerage = new BacktestingBrokerage(algorithm);
+        ConfigurePersistenceMethod.Invoke(
+            transactionHandler,
+            new object[] { algorithm, brokerage });
         RestoreOrderTagMethod.Invoke(transactionHandler, new object[] { order, algorithm });
     }
 
