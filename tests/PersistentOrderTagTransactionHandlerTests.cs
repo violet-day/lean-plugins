@@ -130,13 +130,32 @@ public sealed class PersistentOrderTagTransactionHandlerTests
     }
 
     [Test]
-    public void PreservesBrokerageProvidedTag()
+    public void RestoresPersistedTagOverBrokerageProvidedTag()
     {
         const string brokerageOrderIdentifier = "broker-order-123";
         const string brokerageProvidedTag = "brokerage-tag";
+        const string persistedTag = "persisted-tag";
         var algorithm = CreateAlgorithm(out var objectStore);
         var order = CreateOrder(brokerageOrderIdentifier, brokerageProvidedTag);
-        SavePersistedOrderTag(objectStore, algorithm, order, brokerageOrderIdentifier, "persisted-tag");
+        SavePersistedOrderTag(objectStore, algorithm, order, brokerageOrderIdentifier, persistedTag);
+
+        RestoreOrderTag(new PersistentOrderTagTransactionHandler(), order, algorithm);
+
+        Assert.That(order.Tag, Is.EqualTo(persistedTag));
+    }
+
+    [Test]
+    public void PreservesBrokerageProvidedTagWhenPersistedOrderDoesNotMatch()
+    {
+        const string brokerageProvidedTag = "brokerage-tag";
+        var algorithm = CreateAlgorithm(out var objectStore);
+        var order = CreateOrder("current-broker-order", brokerageProvidedTag);
+        SavePersistedOrderTag(
+            objectStore,
+            algorithm,
+            order,
+            "different-broker-order",
+            "persisted-tag");
 
         RestoreOrderTag(new PersistentOrderTagTransactionHandler(), order, algorithm);
 

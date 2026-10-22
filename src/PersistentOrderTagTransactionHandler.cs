@@ -97,15 +97,6 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
     private void RestoreOrderTag(Order order, IAlgorithm algorithm)
     {
-        if (!string.IsNullOrWhiteSpace(order.Tag))
-        {
-            Log.Trace(
-                $"{nameof(PersistentOrderTagTransactionHandler)}.RestoreOrderTag(): " +
-                $"status=preserved source=brokerage symbol={order.Symbol.Value} " +
-                $"broker_ids={FormatBrokerageOrderIdentifiers(order.BrokerId)} tag={order.Tag}");
-            return;
-        }
-
         EnsureStoreLoaded(algorithm);
 
         PersistedOrderTag? persistedOrderTag;
@@ -120,6 +111,15 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
 
         if (persistedOrderTag == null)
         {
+            if (!string.IsNullOrWhiteSpace(order.Tag))
+            {
+                Log.Trace(
+                    $"{nameof(PersistentOrderTagTransactionHandler)}.RestoreOrderTag(): " +
+                    $"status=preserved source=brokerage symbol={order.Symbol.Value} " +
+                    $"broker_ids={FormatBrokerageOrderIdentifiers(order.BrokerId)} tag={order.Tag}");
+                return;
+            }
+
             Log.Trace(
                 $"{nameof(PersistentOrderTagTransactionHandler)}.RestoreOrderTag(): " +
                 $"status=missing symbol={order.Symbol.Value} order_type={order.Type} " +
@@ -128,6 +128,7 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
             return;
         }
 
+        var brokerageProvidedTag = order.Tag;
         order.ApplyUpdateOrderRequest(new UpdateOrderRequest(
             order.Time,
             order.Id,
@@ -137,7 +138,7 @@ public sealed class PersistentOrderTagTransactionHandler : BrokerageTransactionH
             $"{nameof(PersistentOrderTagTransactionHandler)}.RestoreOrderTag(): " +
             $"status=restored source=object-store symbol={order.Symbol.Value} " +
             $"broker_ids={FormatBrokerageOrderIdentifiers(order.BrokerId)} " +
-            $"tag={persistedOrderTag.Tag}");
+            $"previous_tag={brokerageProvidedTag} tag={persistedOrderTag.Tag}");
     }
 
     private void EnsureStoreLoaded(IAlgorithm algorithm)
