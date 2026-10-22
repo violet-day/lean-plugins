@@ -26,31 +26,38 @@ public sealed class LeanPluginsJobQueueHandler : IJobQueueHandler
             : null;
         if (setupHandlerTypeName != null)
         {
-            Config.Set("setup-handler", setupHandlerTypeName);
+            SetCurrentEnvironmentConfiguration("setup-handler", setupHandlerTypeName);
         }
         if (transactionHandlerTypeName != null)
         {
-            Config.Set("transaction-handler", transactionHandlerTypeName);
+            SetCurrentEnvironmentConfiguration("transaction-handler", transactionHandlerTypeName);
         }
 
         var resultHandlerTypeName = Config.Get("lean-plugins-result-handler");
         if (!string.IsNullOrWhiteSpace(resultHandlerTypeName))
         {
-            var environmentName = Config.GetEnvironment();
-            var resultHandlerConfigurationName = string.IsNullOrWhiteSpace(environmentName)
-                ? "result-handler"
-                : $"{environmentName}.result-handler";
-            Config.Set(resultHandlerConfigurationName, resultHandlerTypeName);
+            SetCurrentEnvironmentConfiguration("result-handler", resultHandlerTypeName);
         }
 
         Log.Trace(
             $"{nameof(LeanPluginsJobQueueHandler)}.NextJob(): status=configured " +
-            $"environment={Config.GetEnvironment()} setup_handler={setupHandlerTypeName ?? "unchanged"} " +
-            $"transaction_handler={transactionHandlerTypeName ?? "unchanged"} " +
-            $"result_handler={resultHandlerTypeName ?? "unchanged"}"
+            $"environment={Config.GetEnvironment()} " +
+            $"setup_handler={Config.Get("setup-handler")} " +
+            $"transaction_handler={Config.Get("transaction-handler")} " +
+            $"result_handler={Config.Get("result-handler")}"
         );
 
         return algorithmJob;
+    }
+
+    private static void SetCurrentEnvironmentConfiguration(string configurationName, string value)
+    {
+        var environmentName = Config.GetEnvironment();
+        Config.Set(
+            string.IsNullOrWhiteSpace(environmentName)
+                ? configurationName
+                : $"{environmentName}.{configurationName}",
+            value);
     }
 
     public void AcknowledgeJob(AlgorithmNodePacket algorithmJob)
